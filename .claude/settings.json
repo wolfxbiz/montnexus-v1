@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx vite:*)",
+      "Bash(python -c \"import django; import sys; sys.path.insert\\(0, ''.''\\); import os; os.environ[''DJANGO_SETTINGS_MODULE'']=''core.settings''; django.setup\\(\\); print\\(''Django OK''\\)\")",
+      "Bash(python -c \"import secrets; print\\(secrets.token_urlsafe\\(50\\)\\)\")",
+      "Bash(python -c \":*)"
+    ]
+  }
+}
