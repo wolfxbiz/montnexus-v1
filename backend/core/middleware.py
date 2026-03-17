@@ -1,13 +1,20 @@
 import jwt
+from jwt import PyJWKClient
 from django.conf import settings
 from django.http import JsonResponse
 
+# Cached JWKS client — fetches Supabase public keys once and caches them
+_jwks_client = None
+
+def _get_jwks_client():
+    global _jwks_client
+    if _jwks_client is None:
+        jwks_url = f"{settings.SUPABASE_URL}/auth/v1/.well-known/jwks.json"
+        _jwks_client = PyJWKClient(jwks_url, cache_jwk_set=True, lifespan=3600)
+    return _jwks_client
+
 
 class SupabaseAuthMiddleware:
-    """
-    Validates Supabase JWT on every request.
-    Attaches decoded payload to request.supabase_user.
-    """
     EXEMPT_PATHS = [
         '/api/webhook/whatsapp/',
         '/admin/',
@@ -17,7 +24,6 @@ class SupabaseAuthMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        # Skip exempt paths
         for exempt in self.EXEMPT_PATHS:
             if request.path.startswith(exempt):
                 return self.get_response(request)
@@ -28,16 +34,17 @@ class SupabaseAuthMiddleware:
 
         token = auth_header.split(' ')[1]
         try:
+            signing_key = _get_jwks_client().get_signing_key_from_jwt(token)
             payload = jwt.decode(
                 token,
-                settings.SUPABASE_JWT_SECRET,
-                algorithms=['HS256'],
+                signing_key.key,
+                algorithms=['ES256', 'HS256'],
                 audience='authenticated',
             )
             request.supabase_user = payload
         except jwt.ExpiredSignatureError:
             return JsonResponse({'error': 'Token expired'}, status=401)
-        except jwt.InvalidTokenError:
+        except Exception as e:
             return JsonResponse({'error': 'Invalid token'}, status=401)
 
         return self.get_response(request)

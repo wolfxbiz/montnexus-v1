@@ -50,6 +50,33 @@ class WhatsAppService:
         response.raise_for_status()
         return response.json()
 
+    # ── Appointment templates ──────────────────────────────────
+
+    def send_appointment_confirmation(self, to: str, doctor_name: str,
+                                       appt_date: str, appt_time: str) -> dict:
+        """Appointment booked — send confirmation to patient."""
+        message = (
+            f"Your appointment with Dr. {doctor_name} is confirmed for "
+            f"{appt_date} at {appt_time}. Please arrive 10 minutes early."
+        )
+        return self.send_message(to, message)
+
+    def send_appointment_reminder(self, to: str, appt_time: str) -> dict:
+        """Day-before reminder — send to patient."""
+        message = (
+            f"Reminder: Your appointment is tomorrow at {appt_time}. "
+            f"Reply CONFIRM to confirm or CANCEL to cancel."
+        )
+        return self.send_message(to, message)
+
+    def send_appointment_cancellation(self, to: str, appt_date: str) -> dict:
+        """Appointment cancelled — notify patient."""
+        message = (
+            f"Your appointment on {appt_date} has been cancelled. "
+            f"Please contact us to rebook."
+        )
+        return self.send_message(to, message)
+
     def parse_incoming(self, payload: dict) -> dict:
         """
         Extract message details from a WhatsApp webhook POST payload.

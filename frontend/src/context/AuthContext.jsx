@@ -10,11 +10,14 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   async function fetchProfile(userId) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single()
+    if (error) {
+      console.error('[AuthContext] fetchProfile error:', error)
+    }
     if (data) {
       setProfile(data)
       setRole(data.role)

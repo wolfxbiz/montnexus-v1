@@ -1,14 +1,29 @@
 {
   "admin": [
-    { "label": "Dashboard", "path": "/dashboard", "icon": "LayoutDashboard" },
-    { "label": "User Management", "path": "/users", "icon": "Users" },
-    { "label": "Documents", "path": "/docs", "icon": "FolderOpen" },
-    { "label": "Analytics", "path": "/analytics", "icon": "BarChart2" },
-    { "label": "Notifications", "path": "/notifications", "icon": "Bell" }
+    { "label": "Dashboard",       "path": "/dashboard",        "icon": "LayoutDashboard", "group": "Main" },
+    { "label": "Documents",       "path": "/docs",              "icon": "FolderOpen",      "group": "Main" },
+    { "label": "Notifications",   "path": "/notifications",     "icon": "Bell",            "group": "Main" },
+    { "label": "User Management", "path": "/users",             "icon": "Users",           "group": "Manage" },
+    { "label": "Analytics",       "path": "/analytics",         "icon": "BarChart2",       "group": "Manage" },
+    { "label": "Patients",        "path": "/crm/patients",      "icon": "HeartPulse",      "group": "CRM" },
+    { "label": "Appointments",    "path": "/crm/appointments",  "icon": "CalendarClock",   "group": "CRM" },
+    { "label": "Staff",           "path": "/hr/staff",           "icon": "UserCheck",       "group": "HR" },
+    { "label": "Shifts",          "path": "/hr/shifts",          "icon": "CalendarRange",   "group": "HR" },
+    { "label": "Leave",           "path": "/hr/leave",           "icon": "CalendarOff",     "group": "HR" },
+    { "label": "Attendance",      "path": "/hr/attendance",      "icon": "ClipboardCheck",  "group": "HR" },
+    { "label": "Billing",         "path": "/finance/billing",    "icon": "ReceiptText",     "group": "Finance" },
+    { "label": "Expenses",        "path": "/finance/expenses",   "icon": "Wallet",          "group": "Finance" },
+    { "label": "Revenue",         "path": "/finance/revenue",    "icon": "TrendingUp",      "group": "Finance" },
+    { "label": "Inventory",       "path": "/inventory",          "icon": "Package",         "group": "Inventory" },
+    { "label": "Stock Alerts",    "path": "/inventory/alerts",   "icon": "AlertTriangle",   "group": "Inventory" },
+    { "label": "Assets",          "path": "/inventory/assets",   "icon": "Wrench",          "group": "Inventory" }
   ],
   "staff": [
-    { "label": "Dashboard", "path": "/dashboard", "icon": "LayoutDashboard" },
-    { "label": "Documents", "path": "/docs", "icon": "FolderOpen" },
-    { "label": "Notifications", "path": "/notifications", "icon": "Bell" }
+    { "label": "Dashboard",     "path": "/dashboard",       "icon": "LayoutDashboard", "group": "Main" },
+    { "label": "Documents",     "path": "/docs",             "icon": "FolderOpen",      "group": "Main" },
+    { "label": "Notifications", "path": "/notifications",    "icon": "Bell",            "group": "Main" },
+    { "label": "Patients",      "path": "/crm/patients",     "icon": "HeartPulse",      "group": "CRM" },
+    { "label": "Appointments",  "path": "/crm/appointments", "icon": "CalendarClock",   "group": "CRM" },
+    { "label": "My Leave",      "path": "/hr/leave",         "icon": "CalendarOff",     "group": "HR" }
   ]
 }

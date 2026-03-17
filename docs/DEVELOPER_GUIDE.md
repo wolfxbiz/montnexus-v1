@@ -1,7 +1,7 @@
 # Montnexus V1 — Developer Guide
 
 > Last updated: March 2026
-> Version: 1.0
+> Version: 2.0
 > Stack: React + Django + Supabase
 
 ---
@@ -38,6 +38,8 @@ Montnexus V1 is a **modular, reusable admin system** built for internal business
 - Supabase handles identity and storage. Django handles workflow and business logic.
 - Every component is built to be extracted and reused across 10+ future client deployments.
 
+**Current scope (V1):** Full ERP system for a healthcare clinic — CRM (patients + appointments), HR (staff, shifts, leave, attendance), Finance (invoices, payments, expenses), Inventory (items, stock, assets), Analytics, Document Vault, WhatsApp Notifications.
+
 ---
 
 ## 2. Tech Stack
@@ -51,7 +53,7 @@ Montnexus V1 is a **modular, reusable admin system** built for internal business
 | Messaging | WhatsApp Business API | Notifications, appointment automation |
 | State | React Context API | Global auth state, user roles |
 | Charts | Recharts | Admin analytics dashboard |
-| Auth Tokens | JWT (via Supabase) | Stateless API authentication |
+| Auth Tokens | JWT via Supabase (ES256 / JWKS) | Stateless API authentication |
 | Icons | lucide-react | UI icons |
 
 ---
@@ -64,7 +66,7 @@ Montnexus V1 is a **modular, reusable admin system** built for internal business
 │   ├── /core                           # Django settings and middleware
 │   │   ├── settings.py                 # All Django config, reads from .env
 │   │   ├── urls.py                     # Root URL router
-│   │   ├── middleware.py               # Supabase JWT validation middleware
+│   │   ├── middleware.py               # Supabase JWT JWKS validation middleware
 │   │   └── wsgi.py
 │   ├── /authentication                 # Auth bridge module
 │   │   ├── views.py                    # GET /api/auth/verify/
@@ -85,6 +87,18 @@ Montnexus V1 is a **modular, reusable admin system** built for internal business
 │   │   ├── whatsapp_service.py         # Standalone WhatsApp API wrapper
 │   │   ├── ai_handler.py               # Rule-based intent classifier
 │   │   └── urls.py                     # /api/notifications/
+│   ├── /crm                            # CRM module (patients, appointments, visits)
+│   │   ├── views.py                    # Patients, appointments, visit records CRUD
+│   │   └── urls.py                     # /api/crm/
+│   ├── /hr                             # HR module (staff, shifts, leave, attendance)
+│   │   ├── views.py                    # Staff, shifts, leave, attendance CRUD
+│   │   └── urls.py                     # /api/hr/
+│   ├── /finance                        # Finance module (invoices, payments, expenses)
+│   │   ├── views.py                    # Invoices, payments, expenses, revenue CRUD
+│   │   └── urls.py                     # /api/finance/
+│   ├── /inventory                      # Inventory module (items, transactions, assets)
+│   │   ├── views.py                    # Items, transactions, alerts, assets CRUD
+│   │   └── urls.py                     # /api/inventory/
 │   ├── requirements.txt
 │   ├── manage.py
 │   ├── .env                            # Real credentials (gitignored)
@@ -119,13 +133,36 @@ Montnexus V1 is a **modular, reusable admin system** built for internal business
 │   │   │   │   ├── FileUploader.jsx    # Drag-drop uploader
 │   │   │   │   └── FileCard.jsx        # File card with download/delete
 │   │   │   ├── /analytics
-│   │   │   │   ├── AnalyticsDashboard.jsx
+│   │   │   │   ├── AnalyticsDashboard.jsx  # ERP quick-stat widgets + charts
 │   │   │   │   └── /charts
 │   │   │   │       ├── SummaryCards.jsx
 │   │   │   │       └── ActivityChart.jsx
-│   │   │   └── /messaging
-│   │   │       ├── NotificationPanel.jsx  # Leave alert form
-│   │   │       └── ChatbotWidget.jsx      # Floating in-app chat
+│   │   │   ├── /messaging
+│   │   │   │   ├── NotificationPanel.jsx  # Leave alert form
+│   │   │   │   └── ChatbotWidget.jsx      # Floating in-app chat
+│   │   │   ├── /crm
+│   │   │   │   ├── PatientsPage.jsx
+│   │   │   │   ├── PatientForm.jsx
+│   │   │   │   ├── AppointmentsPage.jsx   # Includes InvoicePromptModal
+│   │   │   │   ├── AppointmentForm.jsx
+│   │   │   │   ├── VisitRecordForm.jsx    # Includes Supplies Used (inventory)
+│   │   │   │   └── VisitRecordList.jsx
+│   │   │   ├── /hr
+│   │   │   │   ├── StaffPage.jsx
+│   │   │   │   ├── StaffForm.jsx
+│   │   │   │   ├── ShiftsPage.jsx
+│   │   │   │   ├── LeavePage.jsx
+│   │   │   │   └── AttendancePage.jsx
+│   │   │   ├── /finance
+│   │   │   │   ├── BillingPage.jsx        # Invoice list + create
+│   │   │   │   ├── InvoiceForm.jsx        # Pre-fillable with patient + appointment
+│   │   │   │   ├── PaymentsPage.jsx
+│   │   │   │   └── ExpensesPage.jsx
+│   │   │   └── /inventory
+│   │   │       ├── ItemsPage.jsx
+│   │   │       ├── StockPage.jsx
+│   │   │       ├── AlertsPage.jsx
+│   │   │       └── AssetsPage.jsx
 │   │   ├── App.jsx                     # Root router and layout
 │   │   ├── main.jsx                    # React entry point
 │   │   └── index.css                   # Tailwind base imports
@@ -136,33 +173,20 @@ Montnexus V1 is a **modular, reusable admin system** built for internal business
 │   ├── .env                            # Real credentials (gitignored)
 │   └── .env.example                    # Template with placeholder values
 │
+├── /scripts
+│   └── seed.py                         # Mock data seed script (Python, standalone)
+│
 ├── /docs
 │   ├── DEVELOPER_GUIDE.md              # This file
+│   ├── BUILD_PROGRESS.md               # Phase-by-phase build history
 │   ├── MODULE_EXTRACTION_GUIDE.md      # How to extract & reuse each module
 │   ├── api_endpoints.md                # Full API contract reference
-│   ├── supabase_schema.sql             # DB schema — run in Supabase SQL editor
+│   ├── supabase_schema.sql             # Base DB schema (auth, profiles, docs)
+│   ├── supabase_erp_schema.sql         # ERP DB schema (patients, appointments, etc.)
 │   └── env_template.txt                # All required env variables
 │
 ├── /modules                            # Pre-packaged standalone module copies
 │   └── /auth                           # Drop-in auth package for new projects
-│       ├── README.md                   # Install instructions for this module
-│       ├── /frontend
-│       │   ├── /lib
-│       │   │   ├── supabaseClient.js
-│       │   │   └── apiClient.js
-│       │   ├── /context
-│       │   │   └── AuthContext.jsx
-│       │   └── /features/auth
-│       │       ├── LoginPage.jsx
-│       │       ├── ProtectedRoute.jsx
-│       │       └── useAuth.js
-│       └── /backend
-│           ├── /authentication
-│           │   ├── __init__.py
-│           │   ├── views.py
-│           │   ├── utils.py
-│           │   └── urls.py
-│           └── middleware.py
 │
 └── .gitignore
 ```
@@ -224,7 +248,18 @@ python manage.py runserver
 npm run dev
 ```
 
-Open `http://localhost:5173` in your browser.
+Open `http://localhost:5173` (or `http://localhost:5174` if 5173 is in use) in your browser.
+
+> **Note:** Vite automatically increments the port if 5173 is busy. Both 5173 and 5174 are pre-configured in Django's `CORS_ALLOWED_ORIGINS`. If you use a different port, add it to `CORS_ALLOWED_ORIGINS` in `backend/core/settings.py`.
+
+### Step 5 — Seed test data (optional)
+
+```bash
+cd scripts
+python seed.py
+```
+
+This populates the database with realistic test data. See [Section 6](#6-database--supabase-setup) for details.
 
 ---
 
@@ -239,7 +274,7 @@ Open `http://localhost:5173` in your browser.
 | `ALLOWED_HOSTS` | Comma-separated list of allowed hostnames |
 | `SUPABASE_URL` | Your Supabase project URL (`https://xxx.supabase.co`) |
 | `SUPABASE_SERVICE_KEY` | Supabase service role key — **never expose on frontend** |
-| `SUPABASE_JWT_SECRET` | Supabase JWT secret — used to validate user tokens |
+| `SUPABASE_JWT_SECRET` | Supabase JWT secret — kept for reference; JWT validation uses JWKS now |
 | `WHATSAPP_API_URL` | WhatsApp Business API base URL |
 | `WHATSAPP_ACCESS_TOKEN` | Meta developer access token |
 | `WHATSAPP_PHONE_ID` | Your WhatsApp Business phone number ID |
@@ -262,14 +297,8 @@ Open `http://localhost:5173` in your browser.
 ### Run the schema
 
 1. Go to your Supabase project → **SQL Editor**
-2. Paste and run the entire contents of `docs/supabase_schema.sql`
-
-This creates:
-- `public.profiles` — extends `auth.users` with role, department, phone, avatar
-- `public.documents` — file metadata (binaries live in Supabase Storage)
-- `public.audit_logs` — every significant action is logged here
-- A trigger `on_auth_user_created` — auto-creates a profile row when a new user signs up
-- Row Level Security policies on all three tables
+2. Paste and run `docs/supabase_schema.sql` — creates the base tables (`profiles`, `documents`, `audit_logs`)
+3. Paste and run `docs/supabase_erp_schema.sql` — creates all ERP tables (patients, appointments, visit records, staff, shifts, leave, attendance, invoices, invoice items, payments, expenses, inventory items, stock transactions, assets)
 
 ### Create the storage bucket
 
@@ -292,6 +321,23 @@ This creates:
 | `SUPABASE_SERVICE_KEY` | Project Settings → API → `service_role` key |
 | `SUPABASE_JWT_SECRET` | Project Settings → API → JWT Settings → JWT Secret |
 
+> **JWT Signing Algorithm Note:** Supabase projects created or updated after early 2025 use **ES256 (ECC P-256)** for JWT signing, not HS256. The Django middleware now uses JWKS-based verification which handles both automatically. See [Section 7](#7-backend--django) for details.
+
+### Seed test data
+
+After both SQL schemas are applied, run the seed script:
+
+```bash
+cd scripts
+python seed.py
+```
+
+The script:
+- Creates 3 test auth users (2 doctors, 1 nurse) via Supabase Admin API
+- Seeds patients, appointments, visit records, staff, shifts, leave, attendance, invoices, expenses, inventory items, and assets
+- Is idempotent — safe to run multiple times (checks for existing data first)
+- Reads credentials from `../backend/.env` automatically
+
 ---
 
 ## 7. Backend — Django
@@ -309,9 +355,22 @@ Django is the **workflow and business logic layer only**. It does not manage use
 Every incoming request (except `/admin/` and the WhatsApp webhook) must carry an `Authorization: Bearer <token>` header. The middleware:
 
 1. Extracts the token from the header
-2. Decodes and validates it using `SUPABASE_JWT_SECRET`
-3. Attaches the decoded payload to `request.supabase_user`
-4. Returns `401` if the token is missing, expired, or invalid
+2. Fetches the public key from Supabase's JWKS endpoint (cached for 1 hour)
+3. Verifies the token signature using the public key — supports both ES256 and HS256
+4. Attaches the decoded payload to `request.supabase_user`
+5. Returns `401` if the token is missing, expired, or invalid
+
+```python
+from jwt import PyJWKClient
+
+# JWKS URL: https://<project>.supabase.co/auth/v1/.well-known/jwks.json
+# Automatically handles ES256 (current) and HS256 (legacy) projects
+signing_key = _get_jwks_client().get_signing_key_from_jwt(token)
+payload = jwt.decode(token, signing_key.key, algorithms=['ES256', 'HS256'], audience='authenticated')
+request.supabase_user = payload
+```
+
+> **Why JWKS?** Supabase migrated from Legacy HS256 (shared secret) to ES256 (ECC P-256) in 2025. Token validation against the old `SUPABASE_JWT_SECRET` string will fail for new tokens. JWKS-based verification fetches the current public key automatically and handles both algorithm types.
 
 Inside any view, you can access the logged-in user like this:
 
@@ -378,6 +437,35 @@ python manage.py runserver
 | `src/config/roles.json` | Defines roles and their permissions |
 | `src/App.jsx` | All routes defined here |
 
+### Token attachment pattern (`apiClient.js`)
+
+The API client caches the JWT in the Axios default headers on startup and keeps it in sync using Supabase's `onAuthStateChange` listener:
+
+```javascript
+import axios from 'axios'
+import { supabase } from './supabaseClient'
+
+const apiClient = axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL })
+
+function setToken(session) {
+  if (session?.access_token) {
+    apiClient.defaults.headers.common['Authorization'] = `Bearer ${session.access_token}`
+  } else {
+    delete apiClient.defaults.headers.common['Authorization']
+  }
+}
+
+// Set token immediately from existing session (page refresh)
+supabase.auth.getSession().then(({ data: { session } }) => setToken(session))
+
+// Keep updated on login / logout / token refresh
+supabase.auth.onAuthStateChange((_event, session) => setToken(session))
+
+export default apiClient
+```
+
+> **Do not** use an `async` request interceptor that calls `getSession()` on every request — it causes a race condition on first page load where API calls fire before `getSession()` resolves.
+
 ### Making authenticated API calls to Django
 
 Always use `apiClient` (not raw `fetch` or `axios`) — it automatically includes the JWT:
@@ -386,13 +474,16 @@ Always use `apiClient` (not raw `fetch` or `axios`) — it automatically include
 import apiClient from '../../lib/apiClient'
 
 // GET
-const { data } = await apiClient.get('/api/users/')
+const { data } = await apiClient.get('/api/crm/patients/')
 
 // POST
-const { data } = await apiClient.post('/api/users/invite/', { email, full_name, role })
+const { data } = await apiClient.post('/api/crm/patients/', { full_name, phone })
+
+// PATCH
+const { data } = await apiClient.patch(`/api/crm/patients/${id}/`, updates)
 
 // DELETE
-await apiClient.delete(`/api/storage/files/${id}/`)
+await apiClient.delete(`/api/crm/patients/${id}/`)
 ```
 
 ### Querying Supabase directly from the frontend
@@ -440,7 +531,7 @@ function MyComponent() {
 
 ```bash
 npm run dev
-# Runs at http://localhost:5173
+# Runs at http://localhost:5173 (or 5174 if 5173 is busy)
 
 npm run build
 # Builds to /dist for production
@@ -452,29 +543,34 @@ npm run build
 
 ```
 User enters email + password on LoginPage
-        ↓
+        |
 supabase.auth.signInWithPassword()
-        ↓
+        |
 Supabase returns { session: { access_token, user } }
-        ↓
+        |
 AuthContext stores user + fetches profile from public.profiles
-        ↓
+        |
 AuthContext sets role (admin / staff)
-        ↓
+        |
 User is redirected to /dashboard
-        ↓
+        |
+On module load, apiClient.js:
+  getSession() sets Authorization header immediately
+  onAuthStateChange keeps it updated on refresh/logout
+        |
 On every Django API call:
-  apiClient interceptor reads session.access_token
-  Adds "Authorization: Bearer <token>" header
-        ↓
-Django middleware validates token using SUPABASE_JWT_SECRET
-  → attaches decoded payload to request.supabase_user
-  → or returns 401
+  Authorization: Bearer <token> is sent automatically
+        |
+Django middleware (JWKS-based):
+  Fetches Supabase public key from JWKS endpoint (cached 1hr)
+  Verifies ES256 or HS256 signature
+  Attaches decoded payload to request.supabase_user
+  OR returns 401
 ```
 
 **Magic link flow:** `supabase.auth.signInWithOtp({ email })` — Supabase emails a link. When clicked, Supabase sets the session automatically and `onAuthStateChange` in `AuthContext` fires.
 
-**Session persistence:** Supabase persists the session in `localStorage`. On page refresh, `getSession()` in `AuthContext` restores it — users stay logged in.
+**Session persistence:** Supabase persists the session in `localStorage`. On page refresh, `getSession()` in `AuthContext` and `apiClient.js` both restore it — users stay logged in.
 
 ---
 
@@ -560,11 +656,17 @@ Admin sees 4 stat cards sourced from `GET /api/analytics/summary/`. Both admin a
 
 | File | What it does |
 |---|---|
-| `AnalyticsDashboard.jsx` | Fetches summary + activity data in parallel, composes charts |
+| `AnalyticsDashboard.jsx` | Fetches summary, activity, and all 4 ERP live widgets in parallel |
 | `SummaryCards.jsx` | 4 stat cards: Total Users, Active Staff, Documents, Weekly Actions |
 | `ActivityChart.jsx` | Recharts line chart — daily action count from `audit_logs` over last 30 days |
 
-**Admin only.** Data comes from `GET /api/analytics/summary/` and `GET /api/analytics/activity/`.
+**ERP quick-stat widgets (Phase 12):** The dashboard also shows 4 live clickable cards:
+- **Today's Appointments** — links to `/crm/appointments`
+- **Pending Leave Requests** — links to `/hr/leave`
+- **Outstanding Invoices (₹)** — links to `/finance/billing`
+- **Low Stock Items** — links to `/inventory/alerts`
+
+**Admin only.** Data comes from `GET /api/analytics/summary/`, `/api/analytics/activity/`, and the ERP module endpoints.
 
 ---
 
@@ -580,16 +682,98 @@ Admin sees 4 stat cards sourced from `GET /api/analytics/summary/`. Both admin a
 | File | What it does |
 |---|---|
 | `whatsapp_service.py` | Standalone wrapper: `send_message()`, `send_template()`, `parse_incoming()` |
-| `ai_handler.py` | Rule-based intent classifier: appointment / query / unknown → returns response text |
+| `ai_handler.py` | Rule-based intent classifier: appointment / query / unknown — returns response text |
 | `views.py` | `notify_leave` view and `whatsapp_webhook` view (GET for verification, POST for incoming messages) |
 
 > WhatsApp requires real `WHATSAPP_ACCESS_TOKEN`, `PHONE_ID`, and `VERIFY_TOKEN` in `backend/.env` before it will work.
 
 ---
 
+### CRM (`/features/crm/`)
+
+| File | What it does |
+|---|---|
+| `PatientsPage.jsx` | Patient list with search — CRUD via `/api/crm/patients/` |
+| `PatientForm.jsx` | Add/edit patient form (name, phone, DOB, gender, notes) |
+| `AppointmentsPage.jsx` | Appointment list with date/status filters. Post-visit triggers `InvoicePromptModal` |
+| `AppointmentForm.jsx` | Book appointment (patient, doctor, date/time, notes) |
+| `VisitRecordForm.jsx` | Record a visit — includes "Supplies Used" section that writes to inventory on save |
+| `VisitRecordList.jsx` | Past visit records per appointment |
+
+**Phase 12 integration — Appointment → Invoice:**
+After a visit record is saved, `AppointmentsPage` shows a prompt: "Visit recorded — create invoice?" with Skip and Create Invoice buttons. "Create Invoice" renders `InvoiceForm` pre-filled with the patient and appointment ID.
+
+**Phase 12 integration — Visit → Inventory:**
+`VisitRecordForm` has a "Supplies Used" section. Users select inventory items and enter quantities. On submit, for each supply it fires a `POST /api/inventory/transactions/` with `transaction_type: consume` (fire-and-forget — does not block the visit save).
+
+**Backend CRM app:**
+- `/api/crm/patients/` — list, create, retrieve, update, delete patients
+- `/api/crm/appointments/` — list (filter by `date_from`, `date_to`, `doctor_id`, `status`), create, update
+- `/api/crm/appointments/<id>/visit-records/` — list and create visit records for an appointment
+- `/api/crm/appointments/<id>/send-reminder/` — POST to send WhatsApp reminder
+
+> **FK disambiguation:** The `appointments` table has two FKs to `profiles` (`doctor_id` and `booked_by`). When embedding via Supabase, use the explicit FK hint: `doctor:profiles!appointments_doctor_id_fkey(id, full_name)`. See [Section 15](#15-common-patterns) for the pattern.
+
+---
+
+### HR (`/features/hr/`)
+
+| File | What it does |
+|---|---|
+| `StaffPage.jsx` | Staff list — CRUD via `/api/hr/staff/` |
+| `StaffForm.jsx` | Add/edit staff profile (department, role, phone, hire date) |
+| `ShiftsPage.jsx` | Shift roster — create and view shifts per staff member |
+| `LeavePage.jsx` | Leave requests — staff submit, admin approves/rejects |
+| `AttendancePage.jsx` | Attendance log — clock-in/clock-out records |
+
+**Backend HR app:**
+- `/api/hr/staff/` — staff profiles
+- `/api/hr/shifts/` — shift records
+- `/api/hr/leave/` — leave requests (filter by `status=pending`)
+- `/api/hr/attendance/` — attendance records
+
+---
+
+### Finance (`/features/finance/`)
+
+| File | What it does |
+|---|---|
+| `BillingPage.jsx` | Invoice list — filter by status (draft/sent/paid). Create new invoice |
+| `InvoiceForm.jsx` | Invoice builder — line items, tax, discount. Accepts `defaultPatient` and `defaultAppointmentId` props for pre-filling |
+| `PaymentsPage.jsx` | Payment records against invoices |
+| `ExpensesPage.jsx` | Business expenses log |
+
+**Backend Finance app:**
+- `/api/finance/invoices/` — invoices (filter by patient, status)
+- `/api/finance/invoices/<id>/items/` — invoice line items
+- `/api/finance/invoices/<id>/payments/` — payments against an invoice
+- `/api/finance/expenses/` — expense records
+- `/api/finance/summary/` — aggregate stats (outstanding amount, total revenue)
+
+---
+
+### Inventory (`/features/inventory/`)
+
+| File | What it does |
+|---|---|
+| `ItemsPage.jsx` | Inventory item list — add/edit items with unit and reorder threshold |
+| `StockPage.jsx` | Stock transaction log — restock and consume entries |
+| `AlertsPage.jsx` | Low stock alerts — items where `current_stock <= reorder_threshold` |
+| `AssetsPage.jsx` | Fixed asset register — equipment, furniture, devices |
+
+**Backend Inventory app:**
+- `/api/inventory/items/` — inventory items
+- `/api/inventory/transactions/` — stock transactions (`transaction_type`: `restock` or `consume`)
+- `/api/inventory/alerts/` — low stock items (flat array)
+- `/api/inventory/assets/` — fixed assets
+
+---
+
 ## 11. API Endpoints
 
 All endpoints require `Authorization: Bearer <supabase_jwt>` unless marked **PUBLIC**.
+
+### Core
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
@@ -604,6 +788,49 @@ All endpoints require `Authorization: Bearer <supabase_jwt>` unless marked **PUB
 | POST | `/api/notifications/notify/leave/` | Any user | Send leave WhatsApp alert |
 | GET | `/api/notifications/webhook/whatsapp/` | **PUBLIC** | WhatsApp webhook verification |
 | POST | `/api/notifications/webhook/whatsapp/` | **PUBLIC** | Incoming WhatsApp message handler |
+
+### CRM
+
+| Method | Path | Description |
+|---|---|---|
+| GET/POST | `/api/crm/patients/` | List patients / create patient |
+| GET/PATCH/DELETE | `/api/crm/patients/<id>/` | Retrieve / update / delete patient |
+| GET/POST | `/api/crm/appointments/` | List appointments (supports `date_from`, `date_to`, `doctor_id`, `status` filters) / create |
+| GET/PATCH | `/api/crm/appointments/<id>/` | Retrieve / update appointment |
+| GET/POST | `/api/crm/appointments/<id>/visit-records/` | List / create visit records |
+| POST | `/api/crm/appointments/<id>/send-reminder/` | Send WhatsApp appointment reminder |
+
+### HR
+
+| Method | Path | Description |
+|---|---|---|
+| GET/POST | `/api/hr/staff/` | List staff / create staff profile |
+| GET/PATCH/DELETE | `/api/hr/staff/<id>/` | Retrieve / update / delete staff |
+| GET/POST | `/api/hr/shifts/` | List shifts / create shift |
+| GET/POST | `/api/hr/leave/` | List leave requests (filter: `status=pending`) / create |
+| PATCH | `/api/hr/leave/<id>/` | Approve or reject leave request |
+| GET/POST | `/api/hr/attendance/` | List attendance / log attendance |
+
+### Finance
+
+| Method | Path | Description |
+|---|---|---|
+| GET/POST | `/api/finance/invoices/` | List invoices / create invoice |
+| GET/PATCH | `/api/finance/invoices/<id>/` | Retrieve / update invoice |
+| GET/POST | `/api/finance/invoices/<id>/items/` | List / add invoice line items |
+| GET/POST | `/api/finance/invoices/<id>/payments/` | List / record payment |
+| GET/POST | `/api/finance/expenses/` | List expenses / create expense |
+| GET | `/api/finance/summary/` | Aggregate: outstanding, total revenue |
+
+### Inventory
+
+| Method | Path | Description |
+|---|---|---|
+| GET/POST | `/api/inventory/items/` | List items / create item |
+| GET/PATCH | `/api/inventory/items/<id>/` | Retrieve / update item |
+| GET/POST | `/api/inventory/transactions/` | List transactions / create transaction |
+| GET | `/api/inventory/alerts/` | Low stock items (flat array) |
+| GET/POST | `/api/inventory/assets/` | List assets / create asset |
 
 Full request/response shapes are in `docs/api_endpoints.md`.
 
@@ -620,10 +847,24 @@ Roles are stored in `public.profiles.role` in Supabase. They are assigned at inv
 | Feature | Admin | Staff |
 |---|---|---|
 | Dashboard (stats + docs) | Full stats + docs | Recent docs only |
-| User Management | Yes | No (redirected to /unauthorized) |
+| User Management | Yes | No |
 | Document Vault | Yes | Yes |
-| Analytics | Yes | No |
+| Analytics (incl. ERP widgets) | Yes | No |
 | Notifications | Yes | Yes |
+| CRM — Patients | Yes | Yes |
+| CRM — Appointments | Yes | Yes |
+| CRM — Visit Records | Yes | Yes |
+| HR — Staff | Yes | No |
+| HR — Shifts | Yes | Yes |
+| HR — Leave | Yes (approve/reject) | Yes (submit own) |
+| HR — Attendance | Yes | Yes |
+| Finance — Billing | Yes | No |
+| Finance — Payments | Yes | No |
+| Finance — Expenses | Yes | No |
+| Inventory — Items | Yes | Yes |
+| Inventory — Stock | Yes | Yes |
+| Inventory — Alerts | Yes | Yes |
+| Inventory — Assets | Yes | No |
 
 ### How role-gating works
 
@@ -761,6 +1002,49 @@ const { data } = await supabase.storage
 window.open(data.signedUrl, '_blank')
 ```
 
+### Supabase FK disambiguation (multiple FKs to the same table)
+
+When a table has two or more foreign keys pointing to the same table, Supabase cannot infer which relationship to use for embedding. You must provide an explicit FK hint using `!fkey_name`:
+
+```python
+# WRONG — ambiguous: appointments has both doctor_id and booked_by pointing to profiles
+supabase.table('appointments').select('*, doctor:profiles(id, full_name)')
+
+# CORRECT — explicit FK hint
+supabase.table('appointments').select('*, doctor:profiles!appointments_doctor_id_fkey(id, full_name)')
+```
+
+To find the constraint name: Supabase Dashboard → Table Editor → `appointments` → Foreign Keys, or check your schema SQL for `CONSTRAINT appointments_doctor_id_fkey FOREIGN KEY (doctor_id) REFERENCES profiles(id)`.
+
+### CORS multi-port (Vite dev server)
+
+Vite automatically increments its port if the default is in use (5173 → 5174 → ...). Add all ports you may use to `CORS_ALLOWED_ORIGINS` in `backend/core/settings.py`:
+
+```python
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:5174',
+    'http://127.0.0.1:5174',
+]
+```
+
+### Fire-and-forget side effects (cross-module write)
+
+When one module triggers a write in another module that should not block the primary action (e.g., consuming inventory when saving a visit record):
+
+```javascript
+// Do NOT await — failure here must not block the visit save
+for (const supply of suppliesUsed) {
+  apiClient.post('/api/inventory/transactions/', {
+    item_id: supply.item_id,
+    transaction_type: 'consume',
+    quantity: supply.quantity,
+    notes: `Used during visit`,
+  }).catch(() => {})  // silently ignore errors
+}
+```
+
 ---
 
 ## 16. Rules Every Developer Must Follow
@@ -787,42 +1071,15 @@ These are non-negotiable. Breaking them will cause security issues or break the 
 
 10. **Validate at the backend, not just the frontend.** Frontend role checks are for UX. Always enforce permissions in Django views as well.
 
+11. **Use explicit FK hints for Supabase embeds.** Any table with multiple FKs to the same parent table must use `!fkey_name` in the `select()` call. Ambiguous embeds will throw an `APIError` at runtime.
+
+12. **Use JWKS for JWT verification, not raw secret decoding.** The middleware uses `PyJWKClient` — do not revert to `jwt.decode(token, secret_string, ...)`. Supabase may rotate signing keys and the JWKS endpoint always returns the current key.
+
 ---
 
 ## 17. Reusing Modules in Other Projects
 
 Every module is built to be extracted and dropped into a new client project. The `modules/` folder at the root contains pre-packaged standalone copies ready to use.
-
-### The `modules/` folder
-
-```
-/modules
-└── /auth                   ← ready-to-use standalone package
-    ├── README.md            ← full install instructions for this module
-    ├── /frontend
-    │   ├── /lib
-    │   │   ├── supabaseClient.js
-    │   │   └── apiClient.js
-    │   ├── /context
-    │   │   └── AuthContext.jsx
-    │   └── /features/auth
-    │       ├── LoginPage.jsx
-    │       ├── ProtectedRoute.jsx
-    │       └── useAuth.js
-    └── /backend
-        ├── /authentication
-        │   ├── __init__.py
-        │   ├── views.py
-        │   ├── utils.py
-        │   └── urls.py
-        └── middleware.py
-```
-
-Each package in `modules/` is a **snapshot of the source files** from `backend/` and `frontend/src/`. The actual source of truth is still the main codebase — if you update a module here, update the copy in `modules/` too.
-
-> Full extraction instructions for every module are in `docs/MODULE_EXTRACTION_GUIDE.md`.
-
----
 
 ### Module dependency map
 
@@ -830,17 +1087,17 @@ Auth is the foundation. Every other module sits on top of it.
 
 ```
 AUTH ──────────────────────────── no dependencies (always required)
-     │
-     ├── NAVIGATION ──────────── depends on: Auth
-     ├── USER MANAGEMENT ─────── depends on: Auth
-     ├── DOCUMENT VAULT ──────── depends on: Auth
-     ├── ANALYTICS ───────────── depends on: Auth
-     └── NOTIFICATIONS ───────── depends on: Auth
+     |
+     +-- NAVIGATION ──────────── depends on: Auth
+     +-- USER MANAGEMENT ─────── depends on: Auth
+     +-- DOCUMENT VAULT ──────── depends on: Auth
+     +-- ANALYTICS ───────────── depends on: Auth
+     +-- NOTIFICATIONS ───────── depends on: Auth
+     +-- CRM ─────────────────── depends on: Auth
+     +-- HR ──────────────────── depends on: Auth
+     +-- FINANCE ─────────────── depends on: Auth, CRM (for patient pre-fill)
+     +-- INVENTORY ───────────── depends on: Auth
 ```
-
-When extracting any module, always include the Auth module files first.
-
----
 
 ### What changes between client projects
 
@@ -856,10 +1113,6 @@ The code is identical across every deployment. Only these things change:
 | WhatsApp credentials | `backend/.env` |
 | Bot response copy | `notifications/ai_handler.py` `RESPONSES` dict |
 
-No business logic, auth flow, JWT validation, or component structure needs to change.
-
----
-
 ### How to start a new client project from scratch
 
 ```
@@ -871,24 +1124,18 @@ No business logic, auth flow, JWT validation, or component structure needs to ch
 6.  Create a new Supabase project for this client
 7.  Run the required SQL from docs/supabase_schema.sql
         (only the tables the copied modules need)
-8.  Create a private Storage bucket named 'documents'
+8.  For ERP features: run docs/supabase_erp_schema.sql as well
+9.  Create a private Storage bucket named 'documents'
         (only if copying the Document Vault module)
-9.  Fill in backend/.env and frontend/.env with the new credentials
-10. Update navigation.json with the client's routes
-11. Update branding strings (client name, colors in tailwind.config.js)
-12. Run — no further code changes needed
+10. Fill in backend/.env and frontend/.env with the new credentials
+11. Update navigation.json with the client's routes
+12. Update branding strings (client name, colors in tailwind.config.js)
+13. Run scripts/seed.py to populate test data (optional)
+14. Run — no further code changes needed
 ```
 
----
-
-### Keeping modules up to date
-
-When you fix a bug or improve a module in the main Montnexus codebase:
-
-1. Apply the fix in `backend/<module>/` or `frontend/src/features/<module>/`
-2. Copy the updated file(s) into `modules/<module>/` to keep the package in sync
-3. Note the change in a comment or commit message so other developers know to pull the update into their client projects
+> Full extraction instructions for every module are in `docs/MODULE_EXTRACTION_GUIDE.md`.
 
 ---
 
-*Montnexus V1 | Developer Guide v1.0 | March 2026*
+*Montnexus V1 | Developer Guide v2.0 | March 2026*
