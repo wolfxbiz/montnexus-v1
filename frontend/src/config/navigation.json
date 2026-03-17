@@ -1,0 +1,14 @@
+{
+  "admin": [
+    { "label": "Dashboard", "path": "/dashboard", "icon": "LayoutDashboard" },
+    { "label": "User Management", "path": "/users", "icon": "Users" },
+    { "label": "Documents", "path": "/docs", "icon": "FolderOpen" },
+    { "label": "Analytics", "path": "/analytics", "icon": "BarChart2" },
+    { "label": "Notifications", "path": "/notifications", "icon": "Bell" }
+  ],
+  "staff": [
+    { "label": "Dashboard", "path": "/dashboard", "icon": "LayoutDashboard" },
+    { "label": "Documents", "path": "/docs", "icon": "FolderOpen" },
+    { "label": "Notifications", "path": "/notifications", "icon": "Bell" }
+  ]
+}

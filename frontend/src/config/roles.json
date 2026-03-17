@@ -1,0 +1,23 @@
+{
+  "roles": ["admin", "staff"],
+  "permissions": {
+    "admin": [
+      "view:dashboard",
+      "view:users",
+      "manage:users",
+      "invite:users",
+      "view:docs",
+      "upload:docs",
+      "delete:docs",
+      "view:analytics",
+      "view:notifications",
+      "send:notifications"
+    ],
+    "staff": [
+      "view:dashboard",
+      "view:docs",
+      "upload:docs",
+      "view:notifications"
+    ]
+  }
+}
