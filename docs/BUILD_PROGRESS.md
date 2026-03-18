@@ -1,7 +1,7 @@
 # Montnexus V1 — Build Progress
 
 > Last updated: March 2026
-> Status: Phase 12 Complete — Full ERP system operational
+> Status: Phase 14 Complete — Payments + WhatsApp live
 
 This document is a chronological record of every phase built in Montnexus V1.
 
@@ -23,6 +23,8 @@ This document is a chronological record of every phase built in Montnexus V1.
 | 10 | Finance — Invoices, Payments, Expenses | Complete |
 | 11 | Inventory — Items, Stock, Alerts, Assets | Complete |
 | 12 | Cross-Module Integrations + ERP Dashboard | Complete |
+| 13 | WhatsApp Live Integration | Complete |
+| 14 | Payment System (Razorpay + Offline) | Complete |
 
 ---
 
@@ -367,6 +369,47 @@ Django (DRF) ──── SupabaseAuthMiddleware (JWKS)
     Supabase Storage
          +-- documents (private bucket)
 ```
+
+---
+
+---
+
+## Phase 13 — WhatsApp Live Integration
+
+**What was done:**
+- Connected real Meta WhatsApp Business API credentials to the system
+- Configured `WHATSAPP_API_URL=https://graph.facebook.com/v22.0` (updated from v18.0 placeholder)
+- Set `WHATSAPP_PHONE_ID` and `WHATSAPP_ACCESS_TOKEN` from Meta Developer Console
+- Verified outbound messages working: test message delivered to registered recipient
+- Registered test recipient number in Meta Developer sandbox
+- Confirmed leave notifications, leave approval/rejection WhatsApp messages are live
+
+**Key note:** Meta temporary access tokens expire every 24 hours. For production, generate a permanent token via Meta Business Manager → System Users.
+
+---
+
+## Phase 14 — Payment System (Razorpay + Offline)
+
+**What was built:**
+
+**Backend (`/backend/finance/`):**
+- `razorpay_service.py` — standalone Razorpay wrapper (`create_order`, `verify_payment`, `fetch_payment`)
+- `POST /api/finance/invoices/<id>/create-order/` — creates Razorpay order for the outstanding balance
+- `POST /api/finance/payments/verify/` — verifies Razorpay payment signature, records payment, auto-updates invoice status
+- `POST /api/finance/invoices/<id>/record-offline/` — records manual payments (cash, UPI, cheque, bank transfer)
+- Invoice payment status auto-updates to `partial` or `paid` after any payment is recorded
+
+**Frontend (`/frontend/src/features/finance/`):**
+- `PaymentModal.jsx` — two-tab modal: **Pay Online** (Razorpay checkout widget) + **Record Offline** (form with method, amount, reference)
+- **"Collect Payment"** button added to `InvoiceDetailModal` in `BillingPage.jsx` — visible on all unpaid/partial invoices
+- Razorpay `checkout.js` script loaded globally in `frontend/index.html`
+
+**Bug fix:**
+- Leave request form was submitting empty `staff_id` — fixed by looking up the logged-in user's `staff_profiles` row by `profile.id` and passing it as `staffId` prop
+
+**Environment variables added:**
+- `RAZORPAY_KEY_ID` — use `rzp_test_...` for test mode, `rzp_live_...` for production
+- `RAZORPAY_KEY_SECRET` — backend only, never exposed to frontend
 
 ---
 

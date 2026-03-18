@@ -275,8 +275,10 @@ This populates the database with realistic test data. See [Section 6](#6-databas
 | `SUPABASE_URL` | Your Supabase project URL (`https://xxx.supabase.co`) |
 | `SUPABASE_SERVICE_KEY` | Supabase service role key — **never expose on frontend** |
 | `SUPABASE_JWT_SECRET` | Supabase JWT secret — kept for reference; JWT validation uses JWKS now |
-| `WHATSAPP_API_URL` | WhatsApp Business API base URL |
-| `WHATSAPP_ACCESS_TOKEN` | Meta developer access token |
+| `RAZORPAY_KEY_ID` | Razorpay API key ID (e.g. `rzp_test_xxxx` or `rzp_live_xxxx`) |
+| `RAZORPAY_KEY_SECRET` | Razorpay API key secret — **never expose on frontend** |
+| `WHATSAPP_API_URL` | WhatsApp Business API base URL (use `https://graph.facebook.com/v22.0`) |
+| `WHATSAPP_ACCESS_TOKEN` | Meta developer access token (24-hour temp or permanent system user token) |
 | `WHATSAPP_PHONE_ID` | Your WhatsApp Business phone number ID |
 | `WHATSAPP_VERIFY_TOKEN` | Any string — used to verify webhook from Meta |
 
@@ -685,7 +687,9 @@ Admin sees 4 stat cards sourced from `GET /api/analytics/summary/`. Both admin a
 | `ai_handler.py` | Rule-based intent classifier: appointment / query / unknown — returns response text |
 | `views.py` | `notify_leave` view and `whatsapp_webhook` view (GET for verification, POST for incoming messages) |
 
-> WhatsApp requires real `WHATSAPP_ACCESS_TOKEN`, `PHONE_ID`, and `VERIFY_TOKEN` in `backend/.env` before it will work.
+> **WhatsApp setup:** Use API version `v22.0`. The access token from the Meta Developer Console expires every 24 hours in test mode — create a **permanent token** via Meta Business Manager → System Users for production. The webhook (incoming messages) requires a public URL and cannot be tested on localhost.
+
+> Outbound messages (appointment reminders, leave approvals, leave rejections) work as soon as valid credentials are in `backend/.env`. No webhook needed for outbound-only use.
 
 ---
 
@@ -738,17 +742,32 @@ After a visit record is saved, `AppointmentsPage` shows a prompt: "Visit recorde
 
 | File | What it does |
 |---|---|
-| `BillingPage.jsx` | Invoice list — filter by status (draft/sent/paid). Create new invoice |
+| `BillingPage.jsx` | Invoice list — filter by status. "Collect Payment" button on each invoice opens `PaymentModal` |
 | `InvoiceForm.jsx` | Invoice builder — line items, tax, discount. Accepts `defaultPatient` and `defaultAppointmentId` props for pre-filling |
+| `PaymentModal.jsx` | Two-tab payment modal: **Pay Online** (Razorpay checkout) and **Record Offline** (cash/UPI/cheque/bank transfer) |
 | `PaymentsPage.jsx` | Payment records against invoices |
 | `ExpensesPage.jsx` | Business expenses log |
+
+**Payment flow:**
+1. Open any unpaid/partial invoice → click **"Collect Payment"**
+2. **Online tab** — calls `POST /api/finance/invoices/<id>/create-order/` → opens Razorpay checkout widget → on success calls `POST /api/finance/payments/verify/` → invoice auto-marked paid
+3. **Offline tab** — submits amount, method, reference to `POST /api/finance/invoices/<id>/record-offline/` → invoice status auto-updated
 
 **Backend Finance app:**
 - `/api/finance/invoices/` — invoices (filter by patient, status)
 - `/api/finance/invoices/<id>/items/` — invoice line items
 - `/api/finance/invoices/<id>/payments/` — payments against an invoice
+- `/api/finance/invoices/<id>/create-order/` — create Razorpay order for outstanding amount
+- `/api/finance/invoices/<id>/record-offline/` — record cash/UPI/cheque/bank transfer payment
+- `/api/finance/payments/verify/` — verify Razorpay signature and record payment
 - `/api/finance/expenses/` — expense records
 - `/api/finance/summary/` — aggregate stats (outstanding amount, total revenue)
+
+**Razorpay setup:**
+- Add `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` to `backend/.env`
+- The `checkout.js` script is loaded globally in `frontend/index.html`
+- Test keys (`rzp_test_...`) work without KYC. Switch to live keys (`rzp_live_...`) for production
+- `finance/razorpay_service.py` — standalone wrapper: `create_order()`, `verify_payment()`, `fetch_payment()`
 
 ---
 
@@ -819,6 +838,9 @@ All endpoints require `Authorization: Bearer <supabase_jwt>` unless marked **PUB
 | GET/PATCH | `/api/finance/invoices/<id>/` | Retrieve / update invoice |
 | GET/POST | `/api/finance/invoices/<id>/items/` | List / add invoice line items |
 | GET/POST | `/api/finance/invoices/<id>/payments/` | List / record payment |
+| POST | `/api/finance/invoices/<id>/create-order/` | Create Razorpay order for outstanding amount |
+| POST | `/api/finance/invoices/<id>/record-offline/` | Record cash/UPI/cheque/bank transfer payment |
+| POST | `/api/finance/payments/verify/` | Verify Razorpay signature and record payment |
 | GET/POST | `/api/finance/expenses/` | List expenses / create expense |
 | GET | `/api/finance/summary/` | Aggregate: outstanding, total revenue |
 
@@ -1138,4 +1160,4 @@ The code is identical across every deployment. Only these things change:
 
 ---
 
-*Montnexus V1 | Developer Guide v2.0 | March 2026*
+*Montnexus V1 | Developer Guide v2.1 | March 2026*
