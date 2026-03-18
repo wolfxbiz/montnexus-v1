@@ -6,7 +6,7 @@ export default function TopBar({ title }) {
 
   return (
     <header className="h-14 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-      <h1 className="text-base font-semibold text-gray-800">{title}</h1>
+      <h1 className="text-base font-semibold text-gray-800">{title === 'Montnexus' ? '' : title}</h1>
       <div className="flex items-center gap-4">
         <button className="text-gray-400 hover:text-gray-600">
           <Bell size={18} />

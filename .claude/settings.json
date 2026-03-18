@@ -15,7 +15,12 @@
       "Bash(taskkill //F //IM py.exe)",
       "Bash(netstat -ano)",
       "Bash(taskkill //F //PID 25904 //PID 15672 //PID 24464 //PID 504)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(mkdir -p \"/c/Users/vimal/montenxus-v1/montnexus-v1/frontend/public/fonts\")",
+      "Bash(cp \"/c/Users/vimal/Downloads/the-seasons-font-family/mont.ttf\" \"/c/Users/vimal/montenxus-v1/montnexus-v1/frontend/public/fonts/\")",
+      "Bash(cp \"/c/Users/vimal/Downloads/the-seasons-font-family/the-seasons-regular.ttf\" \"/c/Users/vimal/montenxus-v1/montnexus-v1/frontend/public/fonts/\")",
+      "Bash(cp \"/c/Users/vimal/Downloads/the-seasons-font-family/the-seasons-bold-italic.ttf\" \"/c/Users/vimal/montenxus-v1/montnexus-v1/frontend/public/fonts/\")",
+      "Bash(cp \"/c/Users/vimal/Downloads/the-seasons-font-family/the-seasons-light.ttf\" \"/c/Users/vimal/montenxus-v1/montnexus-v1/frontend/public/fonts/\")"
     ]
   }
 }

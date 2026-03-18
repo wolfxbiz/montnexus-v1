@@ -115,11 +115,11 @@ function SidebarContent({ collapsed, setOpen }) {
 
       {/* Logo */}
       <div className={`flex items-center h-16 border-b border-gray-100 shrink-0 ${collapsed ? 'justify-center px-3' : 'px-5'}`}>
-        <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
-          <span className="text-white text-xs font-bold">M</span>
-        </div>
         {!collapsed && (
-          <span className="ml-2.5 text-base font-bold text-gray-900 tracking-tight">Montnexus</span>
+          <span className="text-2xl font-bold text-gray-900" style={{fontFamily: 'Mont, serif'}}>Montnexus</span>
+        )}
+        {collapsed && (
+          <span className="text-base font-bold text-gray-900" style={{fontFamily: 'Mont, serif'}}>M</span>
         )}
       </div>
 
@@ -190,13 +190,6 @@ export default function Sidebar() {
       >
         <SidebarContent collapsed={collapsed} />
 
-        {/* Collapse toggle */}
-        <button
-          onClick={() => setCollapsed(c => !c)}
-          className="absolute -right-3 top-20 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 hover:border-gray-300 shadow-sm transition-colors z-10"
-        >
-          {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
-        </button>
       </aside>
 
       {/* ── Mobile top bar ── */}
@@ -205,7 +198,7 @@ export default function Sidebar() {
           <div className="w-6 h-6 rounded-md bg-indigo-600 flex items-center justify-center">
             <span className="text-white text-xs font-bold">M</span>
           </div>
-          <span className="text-base font-bold text-gray-900">Montnexus</span>
+          <span className="text-base font-bold text-gray-900" style={{fontFamily: 'Mont, serif'}}>Montnexus</span>
         </div>
         <button
           onClick={() => setMobileOpen(true)}
