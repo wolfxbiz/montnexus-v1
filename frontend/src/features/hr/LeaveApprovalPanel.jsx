@@ -28,15 +28,18 @@ export default function LeaveApprovalPanel() {
   const [myStaffId, setMyStaffId] = useState(null)
 
   useEffect(() => {
-    if (!isAdmin && user?.id) {
+    if (user?.id) {
       apiClient.get('/api/hr/staff/')
         .then(({ data }) => {
-          const me = data.find(s => s.profile?.id === user.id)
+          const me = data.find(s =>
+            s.profile_id === user.id ||
+            s.profile?.id === user.id
+          )
           if (me) setMyStaffId(me.id)
         })
         .catch(() => {})
     }
-  }, [user?.id, isAdmin])
+  }, [user?.id])
 
   async function fetchRequests() {
     setLoading(true)
@@ -89,7 +92,14 @@ export default function LeaveApprovalPanel() {
             <RefreshCw size={14} />
           </button>
           {!isAdmin && (
-            <button onClick={() => setShowForm(true)}
+            <button
+              onClick={() => {
+                if (!myStaffId) {
+                  alert('No staff profile linked to your account. Ask an admin to create one under HR → Staff.')
+                  return
+                }
+                setShowForm(true)
+              }}
               className="flex items-center gap-2 px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
               <Plus size={14} /> Request Leave
             </button>

@@ -18,6 +18,10 @@ import os, sys, uuid
 from datetime import date, timedelta, datetime
 from dotenv import load_dotenv
 
+# -- Ensure script runs correctly from any directory --------
+# Change working directory to the project root (parent of scripts/)
+os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+
 # -- Load env -----------------------------------------------
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', 'backend', '.env'))
 

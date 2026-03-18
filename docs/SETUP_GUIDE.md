@@ -181,7 +181,43 @@ This creates all ERP tables:
 4. Toggle: **Private** (not public)
 5. Click **Save**
 
-### Step 5 — Enable Email Auth
+### Step 5 — Set Storage RLS Policies
+
+Without these policies, document uploads will fail with "new row violates row-level security policy".
+
+1. In SQL Editor → click **New query**
+2. Paste and run:
+
+```sql
+-- Allow authenticated users to upload files to their own folder
+CREATE POLICY "Allow authenticated uploads"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (
+  bucket_id = 'documents'
+  AND auth.uid()::text = (storage.foldername(name))[1]
+);
+
+-- Allow authenticated users to read their own files
+CREATE POLICY "Allow authenticated reads"
+ON storage.objects FOR SELECT
+TO authenticated
+USING (
+  bucket_id = 'documents'
+  AND auth.uid()::text = (storage.foldername(name))[1]
+);
+
+-- Allow authenticated users to delete their own files
+CREATE POLICY "Allow authenticated deletes"
+ON storage.objects FOR DELETE
+TO authenticated
+USING (
+  bucket_id = 'documents'
+  AND auth.uid()::text = (storage.foldername(name))[1]
+);
+```
+
+### Step 6 — Enable Email Auth
 
 1. Go to **Authentication → Providers**
 2. Make sure **Email** is enabled (it should be by default)
