@@ -18,13 +18,25 @@ const TYPE_STYLES = {
 }
 
 export default function LeaveApprovalPanel() {
-  const { isAdmin } = useAuth()
+  const { isAdmin, user } = useAuth()
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('pending')
   const [showForm, setShowForm] = useState(false)
   const [actionLoading, setActionLoading] = useState(null)
   const [warnings, setWarnings] = useState({})
+  const [myStaffId, setMyStaffId] = useState(null)
+
+  useEffect(() => {
+    if (!isAdmin && user?.id) {
+      apiClient.get('/api/hr/staff/')
+        .then(({ data }) => {
+          const me = data.find(s => s.profile?.id === user.id)
+          if (me) setMyStaffId(me.id)
+        })
+        .catch(() => {})
+    }
+  }, [user?.id, isAdmin])
 
   async function fetchRequests() {
     setLoading(true)
@@ -156,6 +168,7 @@ export default function LeaveApprovalPanel() {
 
       {showForm && (
         <LeaveRequestForm
+          staffId={myStaffId}
           onClose={() => setShowForm(false)}
           onSaved={() => { setShowForm(false); fetchRequests() }}
         />

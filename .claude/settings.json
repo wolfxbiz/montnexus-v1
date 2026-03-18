@@ -8,7 +8,13 @@
       "Bash(ls /c/Users/vimal/montenxus-v1/montnexus-v1/backend/.env*)",
       "Bash(python scripts/seed.py)",
       "Bash(curl -s -X GET \"http://localhost:8000/api/crm/patients/\" -H \"Origin: http://localhost:5174\" -H \"Authorization: Bearer test123\")",
-      "Bash(python manage.py shell -c \":*)"
+      "Bash(python manage.py shell -c \":*)",
+      "Bash(python -c \"import django; print\\(django.__version__\\)\")",
+      "Bash(taskkill //F //IM python.exe)",
+      "Bash(taskkill //F //IM python3.exe)",
+      "Bash(taskkill //F //IM py.exe)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill //F //PID 25904 //PID 15672 //PID 24464 //PID 504)"
     ]
   }
 }
