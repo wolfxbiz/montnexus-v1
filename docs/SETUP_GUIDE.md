@@ -367,11 +367,22 @@ When ready for real payments:
 
 ## 9. Seed Test Data
 
-After both Supabase schemas are applied and `backend/.env` is filled, seed realistic test data:
+After both Supabase schemas are applied and `backend/.env` is filled, seed realistic test data.
+
+> **Important:** Run this from the **project root** (`montnexus-v1/`), not from inside `backend/`.
 
 ```bash
-cd scripts
-python seed.py
+# Make sure you are in the project root first
+cd montnexus-v1
+
+# Then run
+python scripts/seed.py
+```
+
+If you are already inside the `backend/` folder, go up one level first:
+```bash
+cd ..
+python scripts/seed.py
 ```
 
 What it creates:
