@@ -8,6 +8,7 @@ from supabase import create_client
 
 from .serializers import InvoiceSerializer, InvoiceItemSerializer, PaymentSerializer, ExpenseSerializer
 from .signals import log_action
+from .razorpay_service import RazorpayService
 
 
 def _sb():
@@ -412,3 +413,190 @@ def revenue_by_month(request):
         })
 
     return Response(results)
+
+
+# ─────────────────────────────────────────
+# RAZORPAY — ONLINE PAYMENTS
+# ─────────────────────────────────────────
+
+@api_view(['POST'])
+def create_razorpay_order(request, invoice_id):
+    """
+    POST /api/finance/invoices/<id>/create-order/
+    Creates a Razorpay order for the outstanding amount on this invoice.
+    Returns: { order_id, amount, currency, key_id }
+    """
+    sb = _sb()
+    invoice = sb.table('invoices').select(
+        '*, patient:patients(id, full_name, phone)'
+    ).eq('id', invoice_id).eq('is_deleted', False).single().execute()
+
+    if not invoice.data:
+        return Response({'error': 'Invoice not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    inv = invoice.data
+    total_amount = float(inv.get('total_amount') or 0)
+
+    # Calculate outstanding (total - already paid)
+    payments = sb.table('payments').select('amount_paid').eq('invoice_id', invoice_id).execute()
+    total_paid = sum(float(p['amount_paid']) for p in (payments.data or []))
+    outstanding = round(total_amount - total_paid, 2)
+
+    if outstanding <= 0:
+        return Response({'error': 'Invoice is already fully paid'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        rz = RazorpayService()
+        order = rz.create_order(
+            amount_rupees=outstanding,
+            receipt=inv.get('invoice_number', invoice_id),
+            notes={
+                'invoice_id': invoice_id,
+                'patient_name': (inv.get('patient') or {}).get('full_name', ''),
+            }
+        )
+    except Exception as e:
+        return Response({'error': f'Razorpay error: {str(e)}'}, status=status.HTTP_502_BAD_GATEWAY)
+
+    log_action(_actor(request), 'RAZORPAY_ORDER_CREATED', 'invoices', invoice_id, {
+        'order_id': order['id'],
+        'amount': outstanding,
+    })
+
+    return Response({
+        'order_id': order['id'],
+        'amount': outstanding,
+        'amount_paise': order['amount'],
+        'currency': order['currency'],
+        'key_id': settings.RAZORPAY_KEY_ID,
+        'invoice_number': inv.get('invoice_number', ''),
+        'patient_name': (inv.get('patient') or {}).get('full_name', ''),
+        'patient_phone': (inv.get('patient') or {}).get('phone', ''),
+    })
+
+
+@api_view(['POST'])
+def verify_razorpay_payment(request):
+    """
+    POST /api/finance/payments/verify/
+    Body: { invoice_id, razorpay_order_id, razorpay_payment_id, razorpay_signature }
+    Verifies signature, records payment, marks invoice paid/partial.
+    """
+    invoice_id = request.data.get('invoice_id')
+    order_id = request.data.get('razorpay_order_id')
+    payment_id = request.data.get('razorpay_payment_id')
+    signature = request.data.get('razorpay_signature')
+
+    if not all([invoice_id, order_id, payment_id, signature]):
+        return Response({'error': 'invoice_id, razorpay_order_id, razorpay_payment_id, razorpay_signature are required'},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        rz = RazorpayService()
+        valid = rz.verify_payment(order_id, payment_id, signature)
+    except Exception as e:
+        return Response({'error': f'Verification error: {str(e)}'}, status=status.HTTP_502_BAD_GATEWAY)
+
+    if not valid:
+        return Response({'error': 'Invalid payment signature'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Fetch amount from Razorpay
+    try:
+        payment_details = rz.fetch_payment(payment_id)
+        amount_paid = float(payment_details.get('amount', 0)) / 100  # convert paise to rupees
+    except Exception:
+        amount_paid = 0
+
+    sb = _sb()
+
+    # Record the payment
+    payment_data = {
+        'invoice_id': invoice_id,
+        'amount_paid': amount_paid,
+        'payment_date': datetime.utcnow().isoformat(),
+        'payment_method': 'online',
+        'reference_number': payment_id,
+        'notes': f'Razorpay Order: {order_id}',
+        'recorded_by': _actor(request),
+    }
+    sb.table('payments').insert(payment_data).execute()
+
+    # Update invoice payment status
+    all_payments = sb.table('payments').select('amount_paid').eq('invoice_id', invoice_id).execute()
+    total_paid = sum(float(p['amount_paid']) for p in (all_payments.data or []))
+    invoice = sb.table('invoices').select('total_amount').eq('id', invoice_id).single().execute().data or {}
+    total_amount = float(invoice.get('total_amount') or 0)
+
+    new_status = 'paid' if total_paid >= total_amount else 'partial'
+    sb.table('invoices').update({'payment_status': new_status}).eq('id', invoice_id).execute()
+
+    log_action(_actor(request), 'RAZORPAY_PAYMENT_VERIFIED', 'payments', payment_id, {
+        'invoice_id': invoice_id,
+        'amount': amount_paid,
+        'order_id': order_id,
+    })
+
+    return Response({
+        'message': 'Payment verified and recorded',
+        'payment_id': payment_id,
+        'amount_paid': amount_paid,
+        'payment_status': new_status,
+    })
+
+
+@api_view(['POST'])
+def record_offline_payment(request, invoice_id):
+    """
+    POST /api/finance/invoices/<id>/record-offline/
+    Body: { amount_paid, payment_method, reference_number, notes, payment_date }
+    payment_method: cash | bank_transfer | cheque | upi
+    """
+    sb = _sb()
+
+    invoice = sb.table('invoices').select('total_amount').eq('id', invoice_id)\
+        .eq('is_deleted', False).single().execute()
+    if not invoice.data:
+        return Response({'error': 'Invoice not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    amount_paid = request.data.get('amount_paid')
+    payment_method = request.data.get('payment_method', 'cash')
+    reference_number = request.data.get('reference_number', '')
+    notes = request.data.get('notes', '')
+    payment_date = request.data.get('payment_date', datetime.utcnow().isoformat())
+
+    if not amount_paid or float(amount_paid) <= 0:
+        return Response({'error': 'amount_paid must be greater than 0'},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    allowed_methods = {'cash', 'bank_transfer', 'cheque', 'upi', 'other'}
+    if payment_method not in allowed_methods:
+        return Response({'error': f'payment_method must be one of {allowed_methods}'},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    payment_data = {
+        'invoice_id': invoice_id,
+        'amount_paid': float(amount_paid),
+        'payment_date': payment_date,
+        'payment_method': payment_method,
+        'reference_number': reference_number,
+        'notes': notes,
+        'recorded_by': _actor(request),
+    }
+    result = sb.table('payments').insert(payment_data).execute()
+
+    if result.data:
+        # Update invoice payment status
+        all_payments = sb.table('payments').select('amount_paid').eq('invoice_id', invoice_id).execute()
+        total_paid = sum(float(p['amount_paid']) for p in (all_payments.data or []))
+        total_amount = float(invoice.data.get('total_amount') or 0)
+        new_status = 'paid' if total_paid >= total_amount else 'partial'
+        sb.table('invoices').update({'payment_status': new_status}).eq('id', invoice_id).execute()
+
+        log_action(_actor(request), 'OFFLINE_PAYMENT_RECORDED', 'payments', result.data[0]['id'], {
+            'invoice_id': invoice_id,
+            'amount': float(amount_paid),
+            'method': payment_method,
+        })
+        return Response({**result.data[0], 'payment_status': new_status}, status=status.HTTP_201_CREATED)
+
+    return Response({'error': 'Insert failed'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

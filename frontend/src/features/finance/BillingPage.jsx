@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Plus, RefreshCw, X } from 'lucide-react'
+import { Plus, RefreshCw, X, CreditCard } from 'lucide-react'
 import apiClient from '../../lib/apiClient'
 import InvoiceCard from './InvoiceCard'
 import InvoiceForm from './InvoiceForm'
 import PaymentTracker from './PaymentTracker'
+import PaymentModal from './PaymentModal'
 
 const STATUS_FILTERS = ['all', 'pending', 'partial', 'paid', 'overdue', 'cancelled']
 
@@ -140,9 +141,11 @@ export default function BillingPage() {
 
 // ── Invoice Detail Modal ─────────────────────────────────────
 function InvoiceDetailModal({ invoice, onClose, onSaved }) {
+  const [showPayment, setShowPayment] = useState(false)
   const patient = invoice.patient || {}
   const items = invoice.items || []
   const payments = invoice.payments || []
+  const isPaid = invoice.payment_status === 'paid' || invoice.payment_status === 'cancelled'
 
   const STATUS_STYLES = {
     pending:   'bg-yellow-100 text-yellow-700',
@@ -164,6 +167,13 @@ function InvoiceDetailModal({ invoice, onClose, onSaved }) {
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${STATUS_STYLES[invoice.payment_status] || 'bg-gray-100 text-gray-500'}`}>
               {invoice.payment_status}
             </span>
+            {!isPaid && (
+              <button
+                onClick={() => setShowPayment(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+                <CreditCard size={12} /> Collect Payment
+              </button>
+            )}
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
           </div>
         </div>
@@ -195,6 +205,14 @@ function InvoiceDetailModal({ invoice, onClose, onSaved }) {
           <PaymentTracker invoice={invoice} payments={payments} onSaved={onSaved} />
         </div>
       </div>
+
+      {showPayment && (
+        <PaymentModal
+          invoice={invoice}
+          onClose={() => setShowPayment(false)}
+          onPaid={() => { setShowPayment(false); onSaved() }}
+        />
+      )}
     </div>
   )
 }

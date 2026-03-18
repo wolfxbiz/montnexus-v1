@@ -14,7 +14,8 @@
       "Bash(taskkill //F //IM python3.exe)",
       "Bash(taskkill //F //IM py.exe)",
       "Bash(netstat -ano)",
-      "Bash(taskkill //F //PID 25904 //PID 15672 //PID 24464 //PID 504)"
+      "Bash(taskkill //F //PID 25904 //PID 15672 //PID 24464 //PID 504)",
+      "Bash(pip install:*)"
     ]
   }
 }
