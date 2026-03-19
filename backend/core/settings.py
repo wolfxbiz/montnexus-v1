@@ -36,6 +36,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -84,7 +85,8 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_URL = '/static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # REST Framework
@@ -100,6 +102,10 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:5174',
     'http://127.0.0.1:5174',
 ]
+# Support dynamical adding allowed origins from ENV
+frontend_url = os.getenv('FRONTEND_URL')
+if frontend_url:
+    CORS_ALLOWED_ORIGINS.append(frontend_url)
 CORS_ALLOW_CREDENTIALS = True
 
 # Supabase
