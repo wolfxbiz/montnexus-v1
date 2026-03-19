@@ -25,17 +25,61 @@ def _actor(request):
 @api_view(['GET', 'POST'])
 def patient_list_create(request):
     sb = _sb()
+    actor_id = _actor(request)
+    
+    profile = sb.table('profiles').select('role').eq('id', actor_id).single().execute()
+    role = profile.data.get('role', 'user') if profile.data else 'user'
 
     if request.method == 'GET':
         query = sb.table('patients').select(
             '*, assigned_doctor:profiles(id, full_name)'
         ).eq('is_deleted', False)
 
+        if role != 'admin':
+            visits = sb.table('visit_records').select('patient_id').eq('doctor_id', actor_id).execute()
+            handled_ids = list(set([str(v['patient_id']) for v in (visits.data or [])]))
+            
+            or_str = f"assigned_doctor_id.eq.{actor_id}"
+            if handled_ids:
+                or_str += f",id.in.({','.join(handled_ids)})"
+            
+            query = query.or_(or_str)
+
         # Optional filters
         if doctor_id := request.GET.get('doctor_id'):
             query = query.eq('assigned_doctor_id', doctor_id)
+        if gender := request.GET.get('gender'):
+            query = query.eq('gender', gender)
+        if blood_group := request.GET.get('blood_group'):
+            query = query.eq('blood_group', blood_group)
+            
+        if registered_after := request.GET.get('registered_after'):
+            query = query.gte('created_at', registered_after)
+            
+        if min_age := request.GET.get('min_age'):
+            try:
+                max_dob = (datetime.utcnow() - timedelta(days=int(min_age)*365)).date().isoformat()
+                query = query.lte('date_of_birth', max_dob)
+            except ValueError:
+                pass
+                
+        if max_age := request.GET.get('max_age'):
+            try:
+                min_dob = (datetime.utcnow() - timedelta(days=(int(max_age)+1)*365)).date().isoformat()
+                query = query.gte('date_of_birth', min_dob)
+            except ValueError:
+                pass
+                
+        if is_dormant := request.GET.get('is_dormant'):
+            if is_dormant.lower() == 'true':
+                six_months_ago = (datetime.utcnow() - timedelta(days=180)).isoformat()
+                active = sb.table('visit_records').select('patient_id').gte('visit_date', six_months_ago).execute()
+                active_ids = list(set([v['patient_id'] for v in (active.data or [])]))
+                if active_ids:
+                    query = query.filter('id', 'not.in', f"({','.join(active_ids)})")
+
         if search := request.GET.get('search'):
-            query = query.ilike('full_name', f'%{search}%')
+            query = query.or_(f"full_name.ilike.%{search}%,phone.ilike.%{search}%")
 
         result = query.order('created_at', desc=True).execute()
         return Response(result.data)

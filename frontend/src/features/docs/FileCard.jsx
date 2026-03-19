@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FileText, Download, Trash2 } from 'lucide-react'
+import { FileText, Download, Trash2, Eye } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import apiClient from '../../lib/apiClient'
 
@@ -20,13 +20,27 @@ const CATEGORY_STYLES = {
 export default function FileCard({ file, onDeleted }) {
   const [deleting, setDeleting] = useState(false)
 
+  async function handleView() {
+    const { data, error } = await supabase.storage
+      .from('documents')
+      .createSignedUrl(file.file_path, 60)
+
+    if (error) { alert('Could not generate view link.'); return }
+    window.open(data.signedUrl, '_blank')
+  }
+
   async function handleDownload() {
     const { data, error } = await supabase.storage
       .from('documents')
-      .createSignedUrl(file.file_path, 60) // 60-second signed URL
+      .createSignedUrl(file.file_path, 60, { download: file.file_name || true })
 
     if (error) { alert('Could not generate download link.'); return }
-    window.open(data.signedUrl, '_blank')
+    const a = document.createElement('a')
+    a.href = data.signedUrl
+    a.download = file.file_name || ''
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
   }
 
   async function handleDelete() {
@@ -74,6 +88,13 @@ export default function FileCard({ file, onDeleted }) {
           {file.created_at ? new Date(file.created_at).toLocaleDateString() : '—'}
         </span>
         <div className="flex gap-1">
+          <button
+            onClick={handleView}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+            title="View"
+          >
+            <Eye size={14} />
+          </button>
           <button
             onClick={handleDownload}
             className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
